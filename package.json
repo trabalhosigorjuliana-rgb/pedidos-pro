@@ -9,11 +9,15 @@
     "start": "electron .",
     "dist": "electron-builder --win nsis"
   },
-  "devDependencies": {
-    "electron": "^38.2.0",
-    "electron-builder": "^26.0.12",
+  
+  "dependencies": {
     "better-sqlite3": "^12.2.0"
   },
+  "devDependencies": {
+    "electron": "^38.2.0",
+    "electron-builder": "^26.0.12"
+  },
+
   "build": {
     "appId": "br.com.pedidospro.distribuidora",
     "productName": "Pedidos Pro",
