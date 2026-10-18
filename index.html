@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sistema de Pedidos - Distribuidora</title>
+
+<style>
+:root{--blue:#163b65;--light:#f2f5f9;--line:#d7dee8}*{box-sizing:border-box}body{margin:0;font:15px Arial,sans-serif;background:var(--light);color:#172333}
+header{background:var(--blue);color:white;padding:20px 24px}header h1{margin:0 0 5px;font-size:24px}header p{margin:0;color:#dbe8f7}
+nav{display:flex;gap:8px;flex-wrap:wrap;background:#fff;padding:12px 20px;border-bottom:1px solid var(--line)}
+button,.btn{border:0;border-radius:6px;padding:10px 14px;cursor:pointer;background:var(--blue);color:white;font-weight:600}nav button{background:#e7edf5;color:#163b65}nav button.active{background:var(--blue);color:white}.secondary{background:#66768a}.danger{background:#a83232}.wrap{max-width:1200px;margin:22px auto;padding:0 16px}.panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:18px;box-shadow:0 2px 8px #142b4510}
+h2{margin:0 0 16px;font-size:21px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}label{display:block;font-size:13px;font-weight:bold;color:#40516a;margin-bottom:5px}input,select,textarea{width:100%;padding:10px;border:1px solid #c8d2df;border-radius:6px;font:inherit;background:white}textarea{min-height:72px}form .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:650px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e3e8ef}th{background:#f5f7fa;color:#43536a;font-size:13px}.muted{color:#66768a}.hidden{display:none}.inline{display:flex;gap:8px;align-items:end}.inline>div{flex:1}.totals{text-align:right;font-size:18px;font-weight:bold;margin:16px 0}.itemline{display:grid;grid-template-columns:2fr .7fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}.itemline button{padding:10px}.small{font-size:12px}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+@media(max-width:760px){.grid,.grid.two{grid-template-columns:1fr}.itemline{grid-template-columns:1fr 1fr}.wrap{padding:0 10px}.panel{padding:14px}}
+.cnpj-field{position:relative}.cnpj-suggestions{position:absolute;z-index:50;top:100%;left:0;right:0;max-height:240px;overflow-y:auto;background:#fff;border:1px solid #c8d2df;border-radius:0 0 8px 8px;box-shadow:0 5px 14px #142b4520}.cnpj-suggestion{display:block;width:100%;border:0;border-radius:0;background:#fff;color:#172333;text-align:left;padding:12px;font-weight:normal;border-bottom:1px solid #edf0f4;cursor:pointer}.cnpj-suggestion:last-child{border-bottom:0}.cnpj-suggestion:hover,.cnpj-suggestion:focus{background:#eaf1f9;outline:none}.cnpj-suggestion strong{display:block;color:#163b65}.cnpj-suggestion small{display:block;color:#66768a;margin-top:3px}.cnpj-no-results{padding:12px;color:#66768a;font-size:14px}
+@media print{header,nav,.noprint,button{display:none!important}body{background:white}.wrap{max-width:none;margin:0;padding:0}.panel{border:0;box-shadow:none;padding:0}.print-only{display:block!important}}
+
+/* Modelo moderno para impressão do pedido */
+@page{size:A4;margin:12mm}
+.print-document{font-family:Arial,sans-serif;color:#18324f;background:#fff;font-size:11px;line-height:1.4}
+.print-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:3px solid #163b65;padding:0 0 14px;margin-bottom:16px}
+.print-brand{display:flex;gap:10px;align-items:center}
+.print-mark{width:42px;height:42px;border-radius:8px;background:#163b65;color:white;display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:bold}
+.print-brand h1{font-size:21px;margin:0;color:#163b65;letter-spacing:.3px}
+.print-brand p{margin:3px 0 0;color:#5e7895;font-size:10px;letter-spacing:1.1px}
+.print-order-meta{text-align:right;min-width:130px}
+.print-order-meta .eyebrow{font-size:9px;font-weight:bold;color:#59718a;text-transform:uppercase;letter-spacing:1px}
+.print-order-meta .order-number{font-size:25px;font-weight:bold;color:#163b65;margin:2px 0}
+.print-order-meta .date{font-size:11px;color:#344b64}
+.print-section-title{background:#163b65;color:#fff;padding:7px 10px;font-weight:bold;text-transform:uppercase;letter-spacing:.4px;border-radius:4px 4px 0 0;margin:15px 0 0}
+.print-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #d9e4ef;border-top:0;border-radius:0 0 4px 4px;padding:12px}
+.print-info-grid>div{padding:2px 10px}
+.print-info-grid>div+div{border-left:1px solid #d9e4ef}
+.print-label{display:block;color:#61778e;font-size:9px;font-weight:bold;text-transform:uppercase;margin:0 0 2px}
+.print-value{display:block;color:#18324f;font-size:11px;margin-bottom:8px;overflow-wrap:anywhere}
+.print-table{width:100%;min-width:0;border-collapse:collapse;margin-top:0;font-size:10px}
+.print-table th{background:#eaf1f8;color:#163b65;font-size:9px;text-transform:uppercase;padding:8px 7px;border:1px solid #d8e3ef}
+.print-table td{padding:8px 7px;border:1px solid #e0e7ef;vertical-align:top}
+.print-table tbody tr:nth-child(even){background:#f8fafc}
+.print-num{text-align:right;white-space:nowrap}
+.print-center{text-align:center}
+.print-total-wrap{display:flex;justify-content:flex-end;margin-top:12px}
+.print-total{background:#edf3f9;border-radius:5px;padding:10px 16px;min-width:230px;text-align:right}
+.print-total span{display:block;color:#526c87;font-size:9px;text-transform:uppercase;font-weight:bold;letter-spacing:.5px}
+.print-total strong{display:block;color:#163b65;font-size:23px;margin-top:2px}
+.print-notes{border:1px solid #d9e4ef;border-radius:4px;padding:10px 12px;min-height:42px;margin-top:12px}
+.print-signatures{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin-top:42px;text-align:center;font-size:10px;color:#52677d}
+.print-signatures div{border-top:1px solid #8091a3;padding-top:6px}
+.print-footer{border-top:1px solid #d9e4ef;margin-top:22px;padding-top:9px;text-align:center;color:#5d7590;font-size:9px}
+@media print{
+ body{font-size:11px!important;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ header,nav,#meusPedidos,#empresas,#produtos,#dados{display:none!important}
+ /* A impressão é acionada pela lista de Pedidos Salvos, mas o documento fica na área de impressão da aba de pedidos. */
+ #pedidos.tab{display:block!important}
+ #pedidos>.panel.noprint{display:none!important}
+ #printArea{display:block!important;visibility:visible!important}
+ #printArea.print-document{position:relative!important;width:100%!important;border:0!important;padding:0!important;margin:0!important;box-shadow:none!important;background:#fff!important}
+ #printArea *{visibility:visible!important}
+ .print-section-title,.print-mark,.print-total,.print-table th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .print-table{width:100%!important;min-width:0!important}
+ .print-table tr{break-inside:avoid;page-break-inside:avoid}
+ .noprint{display:none!important}
+ .wrap{max-width:none!important;margin:0!important;padding:0!important}
+}
+
+
+#loginScreen.hidden{display:none!important}#loginScreen{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#102d4d,#245b8d);display:flex;align-items:center;justify-content:center;padding:18px}
+.login-card{width:100%;max-width:420px;background:#fff;border-radius:16px;padding:28px;box-shadow:0 20px 60px #07182b66}
+.login-brand{font-size:12px;letter-spacing:2px;color:#59718a;font-weight:bold;text-transform:uppercase}
+.login-card h2{font-size:26px;color:#163b65;margin:8px 0}
+.login-card p{color:#66768a;line-height:1.5}
+.login-card .field{margin:16px 0}
+.login-card button{width:100%;padding:12px}
+.login-error{color:#a83232;font-size:13px;margin-top:12px}
+#usersTab .grid{margin-bottom:10px}
+.role-pill{display:inline-block;padding:4px 8px;border-radius:20px;background:#e7edf5;color:#163b65;font-size:12px}
+@media(max-width:760px){.login-card{padding:22px}}
+
+#loginScreen.hidden{display:none!important}#loginScreen{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#102d4d,#245b8d);display:flex;align-items:center;justify-content:center;padding:18px}
+.login-card{width:100%;max-width:420px;background:#fff;border-radius:16px;padding:28px;box-shadow:0 20px 60px #07182b66}
+.login-brand{font-size:12px;letter-spacing:2px;color:#59718a;font-weight:bold;text-transform:uppercase}
+.login-card h2{font-size:26px;color:#163b65;margin:8px 0}.login-card p{color:#66768a;line-height:1.5}
+.login-card .field{margin:16px 0}.login-card button{width:100%;padding:12px}
+.login-error{color:#a83232;font-size:13px;margin-top:12px}
+#usersTab .grid{margin-bottom:10px}.role-pill{display:inline-block;padding:4px 8px;border-radius:20px;background:#e7edf5;color:#163b65;font-size:12px}
+@media(max-width:760px){.login-card{padding:22px}}
+.factory-home{max-width:1000px;margin:28px auto;padding:0 16px}
+.factory-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.factory-card{background:#fff;border:1px solid #d7dee8;border-radius:14px;padding:22px;text-align:center;box-shadow:0 4px 16px #142b4510;color:#172333}
+.factory-card .factory-icon{font-size:38px;margin-bottom:10px}
+.factory-card h2{margin:0 0 8px;color:#163b65}
+.factory-card p{margin:0 0 12px;color:#66768a}
+.factory-card strong{display:block;font-size:18px;color:#172333;margin-bottom:16px}
+.factory-card button{width:100%}
+.factory-home-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+#mainApp.factory-select nav{display:none!important}.factory-search{position:relative;background:#fff;border:1px solid #d7dee8;border-radius:12px;padding:16px;margin:0 0 18px;box-shadow:0 2px 8px #142b4510}.factory-search label{font-size:14px}.factory-search input{margin-top:5px}#factoryCnpjSuggestions{position:relative;top:auto;left:auto;right:auto;max-height:240px;margin-top:0;border-radius:0 0 8px 8px}
+@media(max-width:760px){.factory-home{padding:0 10px}.factory-card{padding:18px}}
+</style></head>
+<body>
+<div id="loginScreen">
+  <form id="loginForm" class="login-card">
+    <div class="login-brand">Sistema de Pedidos</div>
+    <h2>Acesse sua conta</h2>
+    <p>Entre com seu usuário e senha para continuar.</p>
+    <div class="field"><label for="loginUser">Usuário</label><input id="loginUser" autocomplete="username" required placeholder="Digite seu usuário"></div>
+    <div class="field"><label for="loginPass">Senha</label><input id="loginPass" type="password" autocomplete="current-password" required placeholder="Digite sua senha"></div>
+    <button type="submit">Entrar no sistema</button>
+    <div id="loginError" class="login-error" role="alert"></div>
+  </form>
+</div>
+<div id="mainApp" class="hidden">
+<header><h1>Gestão de Pedidos</h1><p>Distribuidora de móveis e eletrodomésticos · banco de dados local no computador</p></header>
+<nav class="noprint">
+<button class="active" data-tab="pedidos">Solicitar Pedidos</button><button data-tab="empresas">Cadastro de Clientes</button><button data-tab="fabricas">Cadastro de Fábricas</button><button data-tab="produtos">Produtos</button><button data-tab="meusPedidos">Pedidos Salvos</button><button data-tab="dados">Backup e ajuda</button><button id="usersNav" data-tab="usersTab" class="hidden">Cadastro de Usuários</button><button type="button" id="logoutBtn">Sair</button>
+</nav>
+<section id="factoryHome" class="factory-home hidden">
+<div class="factory-home-head"><h2>Fábrica</h2></div>
+<div class="factory-search">
+<label for="factoryCnpjSearch">Pesquisar por CNPJ</label>
+<input id="factoryCnpjSearch" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="00.000.000/0000-00" aria-label="Pesquisar fábrica pelo CNPJ" aria-autocomplete="list" aria-controls="factoryCnpjSuggestions">
+<div id="factoryCnpjSuggestions" class="cnpj-suggestions hidden" role="listbox" aria-label="Sugestões de fábricas por CNPJ"></div>
+<button type="button" id="factorySearchButton" style="width:100%;margin-top:12px">Buscar</button>
+</div>
+</section>
+<div id="appContent" class="hidden"><div class="wrap">
+<section id="pedidos" class="tab">
+<div class="panel noprint"><h2>Novo pedido</h2>
+<form id="orderForm">
+<div class="grid"><div><label>Número do pedido</label><input id="ordNum" required></div><div><label>Data</label><input id="ordDate" type="date" required></div><div class="cnpj-field"><label for="ordCompany">CNPJ</label><input id="ordCompany" inputmode="numeric" autocomplete="off" placeholder="Digite o CNPJ cadastrado" required aria-autocomplete="list" aria-controls="cnpjSuggestions"><div id="cnpjSuggestions" class="cnpj-suggestions hidden" role="listbox"></div></div></div>
+<div class="grid two" style="margin-top:12px"><div><label>Vendedor / representante</label><input id="seller" placeholder="Nome do vendedor" readonly></div><div><label>Condição de pagamento</label><input id="payment" placeholder="Ex.: 30/60 dias, PIX"></div></div>
+<h3>Itens do pedido</h3><div id="orderItems"></div><button type="button" class="secondary" id="addItem">+ Adicionar produto</button>
+<div class="grid two" style="margin-top:14px"><div><label>Observações</label><textarea id="notes" placeholder="Prazo de entrega, detalhes..."></textarea></div><div class="totals">Total: <span id="orderTotal">R$ 0,00</span></div></div>
+<div class="actions"><button type="submit">Salvar pedido</button><button type="button" class="secondary" id="clearOrder">Limpar</button></div>
+</form></div>
+<div id="printArea" class="panel hidden"></div>
+</section>
+<section id="meusPedidos" class="tab hidden"><div class="panel"><h2>Pedidos Salvos</h2><p class="muted">Consulte, imprima ou exclua os pedidos que você salvou.</p><div class="tablewrap"><table><thead><tr><th>Nº</th><th>Data</th><th>Fábrica</th><th>Cliente</th><th>Total</th><th>Ações</th></tr></thead><tbody id="ordersTable"></tbody></table></div></div></section>
+<section id="empresas" class="tab hidden"><div class="panel"><h2>Cadastro de Clientes</h2><form id="companyForm"><input id="companyId" type="hidden"><div class="grid"><div><label>Razão social / nome *</label><input id="coName" required></div><div><label>Nome fantasia</label><input id="coFantasy"></div><div><label>CNPJ / CPF</label><input id="coDoc" placeholder="00.000.000/0000-00"></div><div><label>Inscrição estadual</label><input id="coIE"></div><div><label>Telefone</label><input id="coPhone"></div><div><label>E-mail</label><input id="coEmail" type="email"></div><div><label>Contato principal</label><input id="coContact"></div><div><label>CEP</label><input id="coCep"></div><div><label>Cidade</label><input id="coCity"></div><div><label>Estado</label><input id="coState" maxlength="2"></div><div><label>Bairro</label><input id="coDistrict"></div><div><label>Endereço</label><input id="coAddress"></div><div><label>Número / complemento</label><input id="coNumber"></div></div><div class="actions"><button type="submit">Salvar empresa</button><button type="button" class="secondary" id="cancelCompany">Limpar</button></div></form></div><div class="panel"><h2>Clientes cadastrados</h2><div class="tablewrap"><table><thead><tr><th>Empresa</th><th>CNPJ/CPF</th><th>Contato</th><th>Telefone</th><th>Ações</th></tr></thead><tbody id="companiesTable"></tbody></table></div></div></section>
+<section id="fabricas" class="tab hidden"><div class="panel"><h2>Cadastro de Fábricas</h2><p class="muted">Cadastre as fábricas para separar os pedidos por fabricante.</p><form id="factoryForm"><input id="factoryId" type="hidden"><div class="grid"><div><label>Nome da fábrica *</label><input id="factoryName" required maxlength="120" placeholder="Nome da fábrica"></div><div><label>CNPJ</label><input id="factoryCnpj" placeholder="00.000.000/0000-00"></div><div><label>Contato</label><input id="factoryContact"></div><div><label>Telefone</label><input id="factoryPhone"></div><div><label>E-mail</label><input id="factoryEmail" type="email"></div><div><label>Observações</label><input id="factoryNotes"></div></div><div class="actions"><button type="submit">Salvar fábrica</button><button type="button" class="secondary" id="cancelFactory">Limpar formulário</button><button type="button" class="secondary" id="backToFactoryHome">Voltar para fábricas</button></div></form></div><div class="panel"><h2>Fábricas cadastradas</h2><div class="tablewrap"><table><thead><tr><th>Fábrica</th><th>CNPJ</th><th>Contato</th><th>Telefone</th><th>Ações</th></tr></thead><tbody id="factoriesTable"></tbody></table></div></div></section>
+<section id="produtos" class="tab hidden"><div class="panel"><h2>Cadastro de produtos</h2><form id="productForm"><input id="productId" type="hidden"><div class="grid"><div><label>Código / SKU</label><input id="prCode"></div><div><label>Descrição do produto *</label><input id="prName" required></div><div><label>Categoria</label><input id="prCategory" placeholder="Móveis, eletrodomésticos..."></div><div><label>Marca</label><input id="prBrand"></div><div><label>Unidade</label><select id="prUnit"><option>UN</option><option>PC</option><option>CX</option><option>JG</option><option>KG</option></select></div><div><label>Preço unitário (R$) *</label><input id="prPrice" type="number" min="0" step="0.01" required></div><div><label>Estoque (opcional)</label><input id="prStock" type="number" min="0" step="1"></div><div><label>Observação</label><input id="prNotes"></div></div><div class="actions"><button type="submit">Salvar produto</button><button type="button" class="secondary" id="cancelProduct">Limpar</button></div></form></div><div class="panel"><h2>Produtos cadastrados</h2><div class="tablewrap"><table><thead><tr><th>Código</th><th>Produto</th><th>Categoria / marca</th><th>Preço</th><th>Ações</th></tr></thead><tbody id="productsTable"></tbody></table></div></div></section>
+<section id="usersTab" class="tab hidden"><div class="panel">
+<h2>Cadastro de Usuários</h2><p class="muted">Cadastre acessos, defina o nível de permissão e desative contas quando necessário.</p>
+<form id="userForm"><input id="userId" type="hidden">
+<div class="grid"><div><label>Nome completo *</label><input id="uFullName" required maxlength="100" placeholder="Nome do usuário"></div>
+<div><label>Nome de usuário (login) *</label><input id="uUsername" required maxlength="40" autocomplete="off" placeholder="Ex.: maria.silva"></div>
+<div><label>Senha <span id="passwordHint">(obrigatória para novo usuário)</span></label><input id="uPassword" type="password" minlength="3" autocomplete="new-password" placeholder="Defina uma senha"></div>
+<div><label>E-mail</label><input id="uEmail" type="email" maxlength="120"></div>
+<div><label>Telefone</label><input id="uPhone" type="tel" maxlength="30"></div>
+<div><label>Tipo de acesso *</label><select id="uRole" required><option value="user">Usuário normal</option><option value="admin">Administrador</option></select></div>
+<div><label>Status da conta *</label><select id="uActive" required><option value="true">Ativo</option><option value="false">Inativo</option></select></div></div>
+<div class="actions"><button type="submit">Salvar usuário</button><button type="button" class="secondary" id="cancelUser">Limpar formulário</button></div>
+</form></div><div class="panel"><h2>Usuários cadastrados</h2><div class="tablewrap"><table><thead><tr><th>Nome</th><th>Login</th><th>Contato</th><th>Permissão</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersTable"></tbody></table></div></div>
+<div class="panel"><p class="small muted">O administrador pode criar, editar, ativar/desativar e excluir contas. Não é permitido excluir ou desativar o próprio administrador conectado.</p></div></section>
+<section id="usersTab" class="tab hidden"><div class="panel"><h2>Cadastro de Usuários</h2><p class="muted">Cadastre acessos, defina permissões e desative contas quando necessário.</p>
+<form id="userForm"><input id="userId" type="hidden"><div class="grid">
+<div><label>Nome completo *</label><input id="uFullName" required maxlength="100"></div>
+<div><label>Nome de usuário (login) *</label><input id="uUsername" required maxlength="40" autocomplete="off"></div>
+<div><label>Senha <span id="passwordHint">(obrigatória para novo usuário)</span></label><input id="uPassword" type="password" minlength="3" autocomplete="new-password" placeholder="Defina uma senha"></div>
+<div><label>E-mail</label><input id="uEmail" type="email" maxlength="120"></div><div><label>Telefone</label><input id="uPhone" type="tel" maxlength="30"></div>
+<div><label>Tipo de acesso *</label><select id="uRole" required><option value="user">Usuário normal</option><option value="admin">Administrador</option></select></div>
+<div><label>Status da conta *</label><select id="uActive" required><option value="true">Ativo</option><option value="false">Inativo</option></select></div></div>
+<div class="actions"><button type="submit">Salvar usuário</button><button type="button" class="secondary" id="cancelUser">Limpar formulário</button></div></form></div>
+<div class="panel"><h2>Usuários cadastrados</h2><div class="tablewrap"><table><thead><tr><th>Nome</th><th>Login</th><th>Contato</th><th>Permissão</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersTable"></tbody></table></div></div>
+<div class="panel"><p class="small muted">O administrador pode criar, editar, ativar/desativar e excluir contas. Não é permitido excluir ou desativar a conta principal Walter.</p></div></section>
+<section id="dados" class="tab hidden"><div class="panel"><h2>Backup e ajuda</h2><p>O sistema salva automaticamente cadastros e pedidos no banco de dados local deste computador. Para ter um arquivo de backup em Downloads, toque em Exportar backup. Não limpe os dados do Chrome sem antes exportar uma cópia.</p><div class="toolbar"><button id="exportData">Exportar backup (.json)</button><label class="btn secondary" for="importFile">Importar backup (.json)</label><input id="importFile" type="file" accept=".json,application/json" class="hidden"><button class="secondary" onclick="window.print()">Imprimir página</button><button class="secondary" id="reloadBtn" type="button">Recarregar sistema</button></div><p style="color:#a83232"><b>Atenção:</b> esta versão não usa Supabase. Clientes, produtos e pedidos ficam armazenados localmente no computador; não há sincronização entre aparelhos. Exporte backups regularmente. Como não há login, qualquer pessoa que abrir o arquivo neste aparelho poderá acessar os dados.</p><h3>Como usar</h3><ol><li>Cadastre seus clientes na aba <b>Cadastro de Clientes</b>.</li><li>Cadastre os itens e preços na aba <b>Produtos</b>.</li><li>Monte um pedido na aba <b>Solicitar Pedidos</b> e clique em Salvar pedido.</li><li>Use <b>Imprimir</b> no pedido para imprimir ou salvar como PDF.</li><li>Use Exportar backup para guardar uma cópia dos seus dados.</li></ol><p class="muted small">Esta versão é uma aplicação local simples. Ela não emite nota fiscal eletrônica, não transmite pedidos pela internet e não substitui um sistema fiscal/contábil.</p></div></section>
+
+</div></div>
+</div><!-- mainApp -->
+<script>
+
+const $=id=>document.getElementById(id), money=n=>(Number(n)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+// Versão local, sem login e sem Supabase.
+let currentUser=null, selectedFactory=null, db={companies:[],products:[],orders:[],users:[],factories:[]};
+function showApp(){ $('mainApp').classList.remove('hidden'); $('mainApp').classList.add('factory-select'); $('loginScreen').classList.add('hidden'); $('seller').readOnly=true; $('seller').value=currentUser?.name||''; $('usersNav').classList.toggle('hidden',currentUser?.role!=='admin'); $('factoryHome').classList.remove('hidden'); $('appContent').classList.add('hidden'); $('factoryCnpjSearch').value=''; renderFactoryCards(); }
+function save(){renderAll();try{const snapshot=JSON.stringify(db);const previous=desktopStorage.getItem('distPedidosDB');if(previous){try{const parsed=JSON.parse(previous);if(parsed&&Array.isArray(parsed.companies)&&Array.isArray(parsed.products)&&Array.isArray(parsed.orders))desktopStorage.setItem('distPedidosDB_previous',previous);}catch(e){}}desktopStorage.setItem('distPedidosDB',snapshot);desktopStorage.setItem('distPedidosBackupAt',new Date().toISOString());desktopStorage.setItem('distPedidosSaveStatus','ok');}catch(e){try{desktopStorage.setItem('distPedidosSaveStatus','error');}catch(ignore){}alert('Não foi possível salvar no armazenamento deste navegador. Exporte um backup para Downloads e confira se há espaço disponível.');}}
+function seedDemoFactories(){
+ const demos=[
+  {id:'demo-factory-01',factoryName:'FÁBRICA TESTE 01 (FICTÍCIA)',factoryCnpj:'00.000.000/0001-01',factoryContact:'Contato fictício 01',factoryPhone:'(00) 00000-0001',factoryEmail:'fabrica01@example.test',factoryNotes:'Cadastro fictício para testes — não representa empresa real.'},
+  {id:'demo-factory-02',factoryName:'FÁBRICA TESTE 02 (FICTÍCIA)',factoryCnpj:'00.000.000/0002-02',factoryContact:'Contato fictício 02',factoryPhone:'(00) 00000-0002',factoryEmail:'fabrica02@example.test',factoryNotes:'Cadastro fictício para testes — não representa empresa real.'},
+  {id:'demo-factory-03',factoryName:'FÁBRICA TESTE 03 (FICTÍCIA)',factoryCnpj:'00.000.000/0003-03',factoryContact:'Contato fictício 03',factoryPhone:'(00) 00000-0003',factoryEmail:'fabrica03@example.test',factoryNotes:'Cadastro fictício para testes — não representa empresa real.'},
+  {id:'demo-factory-04',factoryName:'FÁBRICA TESTE 04 (FICTÍCIA)',factoryCnpj:'00.000.000/0004-04',factoryContact:'Contato fictício 04',factoryPhone:'(00) 00000-0004',factoryEmail:'fabrica04@example.test',factoryNotes:'Cadastro fictício para testes — não representa empresa real.'},
+  {id:'demo-factory-05',factoryName:'FÁBRICA TESTE 05 (FICTÍCIA)',factoryCnpj:'00.000.000/0005-05',factoryContact:'Contato fictício 05',factoryPhone:'(00) 00000-0005',factoryEmail:'fabrica05@example.test',factoryNotes:'Cadastro fictício para testes — não representa empresa real.'}
+ ];
+ let changed=false;
+ demos.forEach(f=>{if(!db.factories.some(existing=>existing.id===f.id)){db.factories.push(f);changed=true;}});
+ return changed;
+}
+function seedDemoProducts(){
+ const names=[
+  ['Geladeira Frost Free 340 L','Fogão 5 Bocas Inox','Micro-ondas 30 L','Lavadora 12 kg','Liquidificador 900 W','Batedeira Planetária','Air Fryer 5 L','Purificador de Água','Freezer Horizontal 200 L','Ventilador de Mesa 40 cm'],
+  ['Geladeira Duplex 410 L','Fogão 4 Bocas Preto','Micro-ondas 20 L','Lavadora 10 kg','Liquidificador 700 W','Sanduicheira Elétrica','Air Fryer 4 L','Bebedouro de Coluna','Freezer Vertical 230 L','Ventilador de Coluna 50 cm'],
+  ['Geladeira Inverse 450 L','Fogão 6 Bocas','Micro-ondas 32 L Espelhado','Lavadora 14 kg','Liquidificador Inox 1000 W','Cafeteira Elétrica','Air Fryer 6 L','Purificador Digital','Freezer Horizontal 300 L','Climatizador de Ar'],
+  ['Geladeira Compacta 240 L','Fogão 5 Bocas Mesa de Vidro','Micro-ondas 25 L','Lavadora 11 kg','Liquidificador 500 W','Espremedor de Frutas','Air Fryer 3,5 L','Bebedouro de Mesa','Freezer Horizontal 150 L','Ventilador de Parede'],
+  ['Geladeira Side by Side 520 L','Fogão 5 Bocas Premium','Micro-ondas 34 L','Lavadora 15 kg','Liquidificador 1200 W','Processador de Alimentos','Air Fryer Oven 12 L','Purificador com Compressor','Freezer Vertical 300 L','Aspirador de Pó']
+ ];
+ let changed=false;
+ db.factories.filter(f=>/^demo-factory-0[1-5]$/.test(f.id)).forEach((factory,fi)=>{
+  names[fi].forEach((name,pi)=>{
+   const id=`demo-product-${fi+1}-${pi+1}`;
+   if(!db.products.some(p=>p.id===id)){
+    db.products.push({id,factoryId:factory.id,prCode:`F${fi+1}-E${String(pi+1).padStart(3,'0')}`,prName:name,prCategory:'Eletrodomésticos',prBrand:`Marca Fictícia ${fi+1}`,prUnit:'UN',prPrice:Math.round((250+(fi*97)+(pi*83))*100)/100,prStock:10+(fi+1)*2+pi,prNotes:'Produto e valor fictícios para demonstração.'});changed=true;
+   }
+  });
+ });
+ return changed;
+}
+function initCloud(){let saved=null;try{saved=JSON.parse(desktopStorage.getItem('distPedidosDB')||'null');if(!(saved&&Array.isArray(saved.companies)&&Array.isArray(saved.products)&&Array.isArray(saved.orders)))saved=null;}catch(e){saved=null;}if(!saved){try{const previous=JSON.parse(desktopStorage.getItem('distPedidosDB_previous')||'null');if(previous&&Array.isArray(previous.companies)&&Array.isArray(previous.products)&&Array.isArray(previous.orders)){saved=previous;console.warn('Dados recuperados da cópia local anterior.');}}catch(e){}}if(saved)db=Object.assign(db,saved);if(!Array.isArray(db.users))db.users=[];if(!Array.isArray(db.factories))db.factories=[];const factoriesAdded=seedDemoFactories();const productsAdded=seedDemoProducts();renderAll();resetOrder();if(factoriesAdded||productsAdded||!saved)save()}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function tab(name){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));$('mainApp').classList.remove('factory-select');$('factoryHome').classList.add('hidden');$('appContent').classList.remove('hidden')}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
+const factoryFields=['factoryName','factoryCnpj','factoryContact','factoryPhone','factoryEmail','factoryNotes'];
+function renderFactoryCards(){
+ const host=$('factoryCards'); if(!host)return;
+ const query=digits($('factoryCnpjSearch')?.value||'');
+ const factories=db.factories.filter(f=>!query||digits(f.factoryCnpj||'').includes(query));
+ host.innerHTML=factories.map(f=>`<div class="factory-card"><div class="factory-icon" aria-hidden="true">🏭</div><h2>Fábricas</h2><p>Pedido referente à fábrica</p><strong>${esc(f.factoryName)}</strong><p class="small">CNPJ: ${esc(f.factoryCnpj||'Não informado')}</p><button type="button" onclick="chooseFactory('${f.id}')">Abrir gestão de pedidos</button></div>`).join('')||(db.factories.length?'<div class="panel"><p>Nenhuma fábrica encontrada para esse CNPJ. Confira os números digitados.</p></div>':'<div class="panel"><p>Nenhuma fábrica cadastrada ainda. Toque em “Cadastro de Fábricas” para adicionar a primeira.</p></div>');
+}
+const factorySearchInput=$('factoryCnpjSearch');
+const factorySearchSuggestions=$('factoryCnpjSuggestions');
+function hideFactoryCnpjSuggestions(){factorySearchSuggestions.classList.add('hidden');factorySearchSuggestions.innerHTML=''}
+function showFactoryCnpjSuggestions(){
+ const query=factorySearchInput.value.trim();
+ const qDigits=digits(query);
+ if(!qDigits){hideFactoryCnpjSuggestions();return}
+ const matches=db.factories.filter(f=>{
+   const cnpjDigits=digits(f.factoryCnpj||'');
+   return cnpjDigits.startsWith(qDigits);
+ }).slice(0,10);
+ factorySearchSuggestions.innerHTML='';
+ if(!matches.length){
+   factorySearchSuggestions.innerHTML='<div class="cnpj-no-results">Nenhuma fábrica encontrada começando com esses números.</div>';
+ }else{
+   matches.forEach(f=>{
+     const option=document.createElement('button');
+     option.type='button';option.className='cnpj-suggestion';option.setAttribute('role','option');
+     const name=document.createElement('strong');name.textContent=f.factoryName||'Fábrica sem nome';
+     const cnpj=document.createElement('small');cnpj.textContent='CNPJ: '+formatCnpj(f.factoryCnpj||'');
+     const details=document.createElement('small');
+     details.textContent=[f.factoryContact?'Contato: '+f.factoryContact:'',f.factoryPhone?'Telefone: '+f.factoryPhone:'',f.factoryEmail?'E-mail: '+f.factoryEmail:''].filter(Boolean).join(' • ');
+     option.append(name,cnpj,details);
+     option.addEventListener('click',()=>{
+       factorySearchInput.value=formatCnpj(f.factoryCnpj||'');
+       hideFactoryCnpjSuggestions();
+     });
+     factorySearchSuggestions.appendChild(option);
+   });
+ }
+ factorySearchSuggestions.classList.remove('hidden');
+}
+factorySearchInput.addEventListener('input',e=>{
+ const formatted=formatCnpj(e.target.value);
+ if(e.target.value!==formatted)e.target.value=formatted;
+ showFactoryCnpjSuggestions();
+});
+factorySearchInput.addEventListener('focus',()=>{if(factorySearchInput.value.trim())showFactoryCnpjSuggestions()});
+factorySearchInput.addEventListener('keydown',e=>{
+ if(e.key==='Escape')hideFactoryCnpjSuggestions();
+ if(e.key==='Enter'&&!factorySearchSuggestions.classList.contains('hidden')){
+   const first=factorySearchSuggestions.querySelector('button');
+   if(first){e.preventDefault();first.click()}
+ }
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.factory-search'))hideFactoryCnpjSuggestions()});
+$('factorySearchButton').addEventListener('click',()=>{
+ const query=digits($('factoryCnpjSearch').value);
+ if(!query){alert('Digite ou selecione um CNPJ para buscar.');return;}
+ const factory=db.factories.find(f=>digits(f.factoryCnpj||'')===query);
+ if(!factory){alert('Nenhuma fábrica encontrada com esse CNPJ.');return;}
+ chooseFactory(factory.id);
+});
+function chooseFactory(id){selectedFactory=db.factories.find(f=>f.id===id)||null;if(!selectedFactory)return;tab('pedidos');resetOrder();renderAll();}
+const openFactoriesButton=$('openFactories'); if(openFactoriesButton) openFactoriesButton.onclick=()=>tab('fabricas');
+$('backToFactoryHome').onclick=()=>{ $('mainApp').classList.add('factory-select');$('appContent').classList.add('hidden');$('factoryHome').classList.remove('hidden');$('factoryCnpjSearch').value='';document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));renderFactoryCards()};
+$('factoryForm').onsubmit=e=>{e.preventDefault();const id=$('factoryId').value||crypto.randomUUID();const obj={id};factoryFields.forEach(f=>obj[f]=$(f).value.trim());const i=db.factories.findIndex(x=>x.id===id);if(i>=0)db.factories[i]=obj;else db.factories.push(obj);clearForm(factoryFields,'factoryId');save();renderFactoryCards();alert('Fábrica salva com sucesso.')};
+$('cancelFactory').onclick=()=>clearForm(factoryFields,'factoryId');
+function editFactory(id){const f=db.factories.find(x=>x.id===id);if(!f)return;$('factoryId').value=f.id;factoryFields.forEach(k=>$(k).value=f[k]||'');tab('fabricas')}
+function deleteFactory(id){if(db.orders.some(o=>o.factoryId===id))return alert('Esta fábrica possui pedidos vinculados e não pode ser excluída.');if(!confirm('Excluir esta fábrica?'))return;db.factories=db.factories.filter(f=>f.id!==id);save();renderFactoryCards()}
+const companyFields=['coName','coFantasy','coDoc','coIE','coPhone','coEmail','coContact','coCep','coCity','coState','coDistrict','coAddress','coNumber'];
+const productFields=['prCode','prName','prCategory','prBrand','prUnit','prPrice','prStock','prNotes'];
+function clearForm(fields,id){fields.forEach(f=>$(f).value='');$(id).value=''}
+$('companyForm').onsubmit=e=>{e.preventDefault();let obj={id:$('companyId').value||crypto.randomUUID()};companyFields.forEach((f,i)=>obj[f]=$(f).value.trim());let idx=db.companies.findIndex(x=>x.id===obj.id);if(idx>=0)db.companies[idx]=obj;else db.companies.push(obj);clearForm(companyFields,'companyId');save()};
+$('cancelCompany').onclick=()=>clearForm(companyFields,'companyId');
+$('productForm').onsubmit=e=>{e.preventDefault();if(!selectedFactory)return alert('Selecione uma fábrica antes de cadastrar produtos.');let id=$('productId').value;let existing=db.products.find(x=>x.id===id);if(existing&&existing.factoryId!==selectedFactory.id)return alert('Este produto pertence a outra fábrica.');let obj={id:id||crypto.randomUUID(),factoryId:existing?.factoryId||selectedFactory.id};productFields.forEach(f=>obj[f]=$(f).value.trim());obj.prPrice=Number(obj.prPrice)||0;let idx=db.products.findIndex(x=>x.id===obj.id);if(idx>=0)db.products[idx]=obj;else db.products.push(obj);clearForm(productFields,'productId');save()};
+$('cancelProduct').onclick=()=>clearForm(productFields,'productId');
+function editCompany(id){let x=db.companies.find(x=>x.id===id);if(!x)return;$('companyId').value=x.id;companyFields.forEach(f=>$(f).value=x[f]||'');tab('empresas');window.scrollTo(0,0)}
+function editProduct(id){let x=db.products.find(x=>x.id===id);if(!x)return;if(!selectedFactory||x.factoryId!==selectedFactory.id)return alert('Este produto não pertence à fábrica selecionada.');$('productId').value=x.id;productFields.forEach(f=>$(f).value=x[f]??'');tab('produtos');window.scrollTo(0,0)}
+function del(type,id){if(!confirm('Confirma excluir este cadastro?'))return;db[type]=db[type].filter(x=>x.id!==id);save()}
+function addLine(item={}){let div=document.createElement('div');div.className='itemline';div.innerHTML=`<div><label>Produto</label><select class="li-product"><option value="">Selecione...</option>${db.products.filter(p=>selectedFactory&&p.factoryId===selectedFactory.id).map(p=>`<option value="${esc(p.id)}">${esc(p.prCode? p.prCode+' - ':'')}${esc(p.prName)} (${money(p.prPrice)})</option>`).join('')}</select></div><div><label>Qtd.</label><input class="li-qty" type="number" min="0.01" step="0.01" value="${item.qty||1}"></div><div><label>Preço unit. (R$)</label><input class="li-price" type="number" min="0" step="0.01" value="${item.price??''}"></div><button type="button" class="danger">×</button>`;$('orderItems').appendChild(div);let sel=div.querySelector('.li-product'),price=div.querySelector('.li-price');sel.value=item.productId||'';if(!item.price&&sel.value){let p=db.products.find(x=>x.id===sel.value);if(p)price.value=p.prPrice}sel.onchange=()=>{let p=db.products.find(x=>x.id===sel.value);price.value=p?p.prPrice:0;calcTotal()};div.querySelectorAll('input').forEach(i=>i.oninput=calcTotal);div.querySelector('button').onclick=()=>{div.remove();calcTotal()};calcTotal()}
+function getLines(){return [...$('orderItems').querySelectorAll('.itemline')].map(d=>{let p=db.products.find(x=>x.id===d.querySelector('.li-product').value);return {productId:p?.id||'',name:p?.prName||'Produto não selecionado',qty:Number(d.querySelector('.li-qty').value)||0,price:Number(d.querySelector('.li-price').value)||0,unit:p?.prUnit||'UN'}}).filter(x=>x.productId&&x.qty>0)}
+function calcTotal(){$('orderTotal').textContent=money(getLines().reduce((s,x)=>s+x.qty*x.price,0))}
+$('addItem').onclick=()=>addLine();$('clearOrder').onclick=()=>resetOrder();
+function resetOrder(){$('orderForm').reset();$('seller').value=currentUser?.name||'';$('seller').readOnly=true;$('ordCompany').value='';$('ordCompany').readOnly=false;$('ordNum').value=String(Math.max(0,...db.orders.map(o=>Number(o.num)||0))+1).padStart(5,'0');$('ordDate').value=new Date().toISOString().slice(0,10);$('orderItems').innerHTML='';addLine();$('printArea').classList.add('hidden')}
+const cnpjInput=$('ordCompany'), cnpjSuggestions=$('cnpjSuggestions');
+function digits(value){return String(value||'').replace(/\D/g,'')}
+function formatCnpj(value){
+ const d=digits(value).slice(0,14);
+ return d.replace(/^(\d{2})(\d)/,'$1.$2')
+         .replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3')
+         .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/,'$1.$2.$3/$4')
+         .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/,'$1.$2.$3/$4-$5');
+}
+function hideCnpjSuggestions(){cnpjSuggestions.classList.add('hidden');cnpjSuggestions.innerHTML=''}
+function showCnpjSuggestions(){
+ const query=cnpjInput.value.trim(), qDigits=digits(query);
+ if(!query){hideCnpjSuggestions();return}
+ const companyMatches=db.companies.filter(co=>{
+   const doc=String(co.coDoc||'').trim();
+   return doc && (digits(doc).startsWith(qDigits) || String(co.coName||'').toLocaleLowerCase('pt-BR').startsWith(query.toLocaleLowerCase('pt-BR')) || String(co.coFantasy||'').toLocaleLowerCase('pt-BR').startsWith(query.toLocaleLowerCase('pt-BR')));
+ }).map(co=>({...co,_sourceType:'company'}));
+ const matches=companyMatches.slice(0,10);
+ cnpjSuggestions.innerHTML='';
+ if(!matches.length){cnpjSuggestions.innerHTML='<div class="cnpj-no-results">Nenhum CNPJ de cliente cadastrado encontrado.</div>'}
+ else matches.forEach(co=>{
+   const option=document.createElement('button'); option.type='button'; option.className='cnpj-suggestion'; option.setAttribute('role','option');
+   const name=document.createElement('strong');name.textContent=co.coName||'Empresa sem nome';
+   const doc=document.createElement('small');doc.textContent='CNPJ: '+(co.coDoc||'');
+   const detail=document.createElement('small');
+   detail.textContent=['CLIENTE',co.coContact?'Contato: '+co.coContact:'',co.coPhone?'Telefone: '+co.coPhone:'',co.coEmail?'E-mail: '+co.coEmail:'',co._notes?'Observações: '+co._notes:''].filter(Boolean).join(' • ');
+   option.append(name,doc,detail);
+   option.addEventListener('click',()=>{cnpjInput.value=formatCnpj(co.coDoc);hideCnpjSuggestions();cnpjInput.dispatchEvent(new Event('change',{bubbles:true}));});
+   cnpjSuggestions.appendChild(option);
+ });
+ cnpjSuggestions.classList.remove('hidden');
+}
+cnpjInput.addEventListener('input',()=>{
+ const formatted=formatCnpj(cnpjInput.value);
+ if(cnpjInput.value!==formatted)cnpjInput.value=formatted;
+ showCnpjSuggestions();
+});
+cnpjInput.addEventListener('focus',()=>{if(cnpjInput.value.trim())showCnpjSuggestions()});
+cnpjInput.addEventListener('keydown',e=>{if(e.key==='Escape')hideCnpjSuggestions();if(e.key==='Enter'&&!cnpjSuggestions.classList.contains('hidden')){const first=cnpjSuggestions.querySelector('button');if(first){e.preventDefault();first.click()}}});
+document.addEventListener('click',e=>{if(!e.target.closest('.cnpj-field'))hideCnpjSuggestions()});
+
+$('orderForm').onsubmit=e=>{e.preventDefault();let lines=getLines();if(!lines.length)return alert('Adicione ao menos um produto ao pedido.');let typedDoc=$('ordCompany').value.trim();let typedDigits=digits(typedDoc);let co=db.companies.find(x=>{let doc=String(x.coDoc||'').trim();let docDigits=digits(doc);return doc.toLocaleLowerCase('pt-BR')===typedDoc.toLocaleLowerCase('pt-BR')||(docDigits===typedDigits&&typedDigits.length>0)});if(!co)return alert('CNPJ/CPF não encontrado no Cadastro de Clientes. Confira o cadastro ou selecione um cliente da lista.');if(!selectedFactory)return alert('Selecione uma fábrica antes de emitir um pedido.');let o={id:crypto.randomUUID(),factoryId:selectedFactory.id,factoryName:selectedFactory.factoryName,num:$('ordNum').value,date:$('ordDate').value,companyId:co.id,company:co.coName,doc:co.coDoc,address:[co.coAddress,co.coNumber,co.coDistrict,co.coCity,co.coState,co.coCep].filter(Boolean).join(', '),phone:co.coPhone,contact:co.coContact,seller:$('seller').value,payment:$('payment').value,notes:$('notes').value,lines,total:lines.reduce((s,x)=>s+x.qty*x.price,0)};db.orders.unshift(o);save();alert('Pedido salvo com sucesso.');resetOrder()};
+function printOrder(id){
+ let o=db.orders.find(x=>x.id===id);if(!o)return;
+ // Busca os dados atuais no cadastro do cliente selecionado pelo CNPJ/CPF.
+ const client=db.companies.find(c=>c.id===o.companyId)||db.companies.find(c=>digits(c.coDoc) && digits(c.coDoc)===digits(o.doc));
+ const clientName=client?.coName||o.company||'-';
+ const clientDoc=client?.coDoc||o.doc||'-';
+ const clientAddress=client
+   ? [client.coAddress,client.coNumber,client.coDistrict,client.coCity,client.coState,client.coCep].filter(Boolean).join(', ')||'-'
+   : o.address||'-';
+ const clientContact=client ? [client.coPhone,client.coContact].filter(Boolean).join(' / ')||'-' : '-';
+ const factory=db.factories.find(f=>f.id===o.factoryId);
+ const factoryName=factory?.factoryName||o.factoryName||'-';
+ let area=$('printArea');
+ const displayDate=value=>{if(!value)return '-';const parts=String(value).split('-');return parts.length===3?`${parts[2]}/${parts[1]}/${parts[0]}`:value};
+ area.classList.remove('hidden');
+ area.classList.add('print-document');
+ area.innerHTML=`
+  <div class="print-top">
+   <div class="print-brand"><div class="print-mark">D</div><div><h1>SUA DISTRIBUIDORA</h1><p>MÓVEIS E ELETRODOMÉSTICOS</p><div style="font-size:10px;color:#526c87;margin-top:5px">Pedido de produtos e serviços</div></div></div>
+   <div class="print-order-meta"><div class="eyebrow">Pedido de venda</div><div class="order-number">${esc(o.num)}</div><div class="date">Emissão: ${esc(displayDate(o.date))}</div></div>
+  </div>
+  <div class="print-section-title">Fábrica responsável</div>
+  <div class="print-info-grid"><div><span class="print-label">Pedido referente à fábrica</span><span class="print-value"><strong>${esc(factoryName)}</strong></span></div></div>
+  <div class="print-section-title">Dados do cliente e da venda</div>
+  <div class="print-info-grid">
+   <div>
+    <span class="print-label">Razão social / Nome</span><span class="print-value"><strong>${esc(clientName)}</strong></span>
+    <span class="print-label">CNPJ / CPF</span><span class="print-value">${esc(clientDoc)}</span>
+    <span class="print-label">Endereço</span><span class="print-value">${esc(clientAddress)}</span>
+    <span class="print-label">Telefone / Contato</span><span class="print-value">${esc(clientContact)}</span>
+   </div>
+   <div>
+    <span class="print-label">Vendedor / Representante</span><span class="print-value">${esc(o.seller||'-')}</span>
+    <span class="print-label">Condição de pagamento</span><span class="print-value">${esc(o.payment||'-')}</span>
+    <span class="print-label">Data do pedido</span><span class="print-value">${esc(displayDate(o.date))}</span>
+   </div>
+  </div>
+  <div class="print-section-title">Produtos do pedido</div>
+  <table class="print-table"><thead><tr><th style="width:13%">Código</th><th>Produto</th><th style="width:9%" class="print-center">Qtd.</th><th style="width:10%" class="print-center">Un.</th><th style="width:17%" class="print-num">Valor unit. (R$)</th><th style="width:18%" class="print-num">Valor total (R$)</th></tr></thead>
+  <tbody>${o.lines.map(l=>{const product=db.products.find(p=>p.id===l.productId);return `<tr><td>${esc(product?.prCode||'-')}</td><td>${esc(l.name)}</td><td class="print-center">${esc(l.qty)}</td><td class="print-center">${esc(l.unit||'UN')}</td><td class="print-num">${money(l.price)}</td><td class="print-num">${money(l.qty*l.price)}</td></tr>`}).join('')}</tbody></table>
+  <div class="print-total-wrap"><div class="print-total"><span>Total do pedido</span><strong>${money(o.total)}</strong></div></div>
+  <div class="print-notes"><span class="print-label">Observações</span><span>${esc(o.notes||'Nenhuma observação informada.')}</span></div>
+  <div class="print-signatures"><div>Assinatura do cliente</div><div>Responsável pela venda</div></div>
+  <div class="print-footer">Obrigado pela preferência e confiança!</div>
+  <div class="noprint" style="margin-top:18px;text-align:right"><button onclick="window.print()">Imprimir / Salvar como PDF</button></div>`;
+ window.print();
+}
+function renderAll(){renderFactoryCards();const ft=$('factoriesTable');if(ft)ft.innerHTML=db.factories.map(f=>`<tr><td>${esc(f.factoryName)}</td><td>${esc(f.factoryCnpj||'-')}</td><td>${esc(f.factoryContact||'-')}<br>${esc(f.factoryEmail||'')}</td><td>${esc(f.factoryPhone||'-')}</td><td><button onclick="editFactory('${f.id}')">Editar</button> <button class="danger" onclick="deleteFactory('${f.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="5">Nenhuma fábrica cadastrada.</td></tr>';$('companiesTable').innerHTML=db.companies.map(x=>`<tr><td>${esc(x.coName)}<br><span class="muted small">${esc(x.coFantasy)}</span></td><td>${esc(x.coDoc)}</td><td>${esc(x.coContact)}<br>${esc(x.coEmail)}</td><td>${esc(x.coPhone)}</td><td><button onclick="editCompany('${x.id}')">Editar</button> <button class="danger" onclick="del('companies','${x.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="5">Nenhuma empresa cadastrada.</td></tr>';
+$('productsTable').innerHTML=db.products.filter(x=>selectedFactory&&x.factoryId===selectedFactory.id).map(x=>`<tr><td>${esc(x.prCode)}</td><td>${esc(x.prName)}</td><td>${esc(x.prCategory)} / ${esc(x.prBrand)}</td><td>${money(x.prPrice)}</td><td><button onclick="editProduct('${x.id}')">Editar</button> <button class="danger" onclick="del('products','${x.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="5">Nenhum produto cadastrado.</td></tr>';
+
+$('ordersTable').innerHTML=db.orders.map(o=>`<tr><td>${esc(o.num)}</td><td>${esc(o.date)}</td><td>${esc(o.factoryName||db.factories.find(f=>f.id===o.factoryId)?.factoryName||"-")}</td><td>${esc(o.company)}</td><td>${money(o.total)}</td><td><button onclick="printOrder('${o.id}')">Imprimir</button> <button class="danger" onclick="if(confirm('Excluir pedido?')){db.orders=db.orders.filter(x=>x.id!=='${o.id}');save()}">Excluir</button></td></tr>`).join('')||'<tr><td colspan="6">Nenhum pedido salvo.</td></tr>'}
+$('exportData').onclick=()=>{let a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.href=url;a.download='backup-distribuidora-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url)};
+$('importFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let incoming=JSON.parse(await f.text());if(!Array.isArray(incoming.companies)||!Array.isArray(incoming.products)||!Array.isArray(incoming.orders))throw Error();if(confirm('Importar backup e substituir os dados atuais?')){db=incoming;save();alert('Backup importado.')}}catch(err){alert('Arquivo inválido ou incompatível.')}e.target.value=''};
+const originalRenderAll=renderAll;
+renderAll=function(){originalRenderAll();renderUsers()};
+function ensureAdmin(){
+  if(!Array.isArray(db.users))db.users=[];
+  // Acesso inicial solicitado: login 123 e senha 123.
+  let admin123=db.users.find(u=>String(u.username).trim()==='123');
+  if(!admin123){
+    db.users.unshift({id:'default-admin-123',name:'Administrador',username:'123',password:'123',email:'',phone:'',role:'admin',active:true,createdAt:new Date().toISOString()});
+  }else{
+    admin123.name=admin123.name||'Administrador';admin123.password='123';admin123.role='admin';admin123.active=true;
+  }
+  // Mantém o usuário antigo, caso já exista, para não perder o acesso anterior.
+  if(!db.users.some(u=>String(u.username).toLowerCase()==='walter')){
+    db.users.push({id:'default-admin-walter',name:'Walter',username:'Walter',password:'123',email:'',phone:'',role:'admin',active:true,createdAt:new Date().toISOString()});
+  }
+  try{desktopStorage.setItem('distPedidosDB',JSON.stringify(db))}catch(e){}
+}
+function renderUsers(){
+  const body=$('usersTable'); if(!body)return;
+  body.innerHTML=db.users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.username)}</td><td>${esc(u.email||'-')}<br>${esc(u.phone||'')}</td><td><span class="role-pill">${u.role==='admin'?'Administrador':'Usuário normal'}</span></td><td>${u.active?'Ativo':'Inativo'}</td><td><button onclick="editUser('${u.id}')">Editar</button> <button class="secondary" onclick="toggleUser('${u.id}')">${u.active?'Desativar':'Ativar'}</button> <button class="danger" onclick="deleteUser('${u.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="6">Nenhum usuário cadastrado.</td></tr>';
+}
+function clearUserForm(){ $('userForm').reset();$('userId').value='';$('uPassword').required=true;$('passwordHint').textContent='(obrigatória para novo usuário)';$('uRole').value='user';$('uActive').value='true';}
+function editUser(id){
+  if(currentUser?.role!=='admin')return alert('Apenas administradores podem gerenciar usuários.');
+  const u=db.users.find(x=>x.id===id);if(!u)return;
+  $('userId').value=u.id;$('uFullName').value=u.name||'';$('uUsername').value=u.username||'';$('uPassword').value='';$('uPassword').required=false;$('passwordHint').textContent='(deixe em branco para manter a senha atual)';
+  $('uEmail').value=u.email||'';$('uPhone').value=u.phone||'';$('uRole').value=u.role||'user';$('uActive').value=String(!!u.active);tab('usersTab');window.scrollTo(0,0);
+}
+function toggleUser(id){
+  if(currentUser?.role!=='admin')return alert('Apenas administradores podem gerenciar usuários.');
+  const u=db.users.find(x=>x.id===id);if(!u)return;
+  if(u.id===currentUser.id)return alert('Você não pode desativar sua própria conta.');
+  if(String(u.username).toLowerCase()==='walter')return alert('A conta principal Walter não pode ser desativada.');
+  u.active=!u.active;save();
+}
+function deleteUser(id){
+  if(currentUser?.role!=='admin')return alert('Apenas administradores podem gerenciar usuários.');
+  const u=db.users.find(x=>x.id===id);if(!u)return;
+  if(u.id===currentUser.id||String(u.username).toLowerCase()==='walter')return alert('A conta principal ou a conta conectada não pode ser excluída.');
+  if(confirm('Excluir o usuário '+u.username+'? Esta ação não pode ser desfeita.')){db.users=db.users.filter(x=>x.id!==id);save();}
+}
+$('userForm').onsubmit=e=>{
+  e.preventDefault();if(currentUser?.role!=='admin')return alert('Apenas administradores podem gerenciar usuários.');
+  const id=$('userId').value, username=$('uUsername').value.trim();
+  if(db.users.some(u=>u.username.toLowerCase()===username.toLowerCase()&&u.id!==id))return alert('Já existe um usuário com esse login.');
+  if(!id&&!$('uPassword').value)return alert('Informe uma senha para o novo usuário.');
+  const old=db.users.find(u=>u.id===id);if(old&&old.id===currentUser.id&&$('uActive').value!=='true')return alert('Você não pode desativar sua própria conta.');
+  const obj={id:id||crypto.randomUUID(),name:$('uFullName').value.trim(),username,password:$('uPassword').value||old?.password||'',email:$('uEmail').value.trim(),phone:$('uPhone').value.trim(),role:$('uRole').value,active:$('uActive').value==='true',createdAt:old?.createdAt||new Date().toISOString()};
+  if(String(obj.username).toLowerCase()==='walter'){obj.role='admin';obj.active=true;}
+  if(old)db.users=db.users.map(u=>u.id===id?obj:u);else db.users.push(obj);
+  save();clearUserForm();alert('Usuário salvo com sucesso.');
+};
+$('cancelUser').onclick=clearUserForm;
+$('loginForm').onsubmit=e=>{
+  e.preventDefault();const username=$('loginUser').value.trim().toLowerCase(),password=$('loginPass').value;
+  const u=db.users.find(x=>String(x.username).toLowerCase()===username&&x.password===password&&x.active);
+  if(!u){$('loginError').textContent='Usuário ou senha inválidos, ou conta inativa.';return;}
+  currentUser={id:u.id,name:u.name,username:u.username,role:u.role};$('loginError').textContent='';$('loginPass').value='';showApp();
+};
+$('logoutBtn').onclick=()=>{currentUser=null;selectedFactory=null;$('mainApp').classList.add('hidden');$('loginScreen').classList.remove('hidden');$('loginUser').value='';$('loginPass').value='';$('loginUser').focus();};
+$('reloadBtn').onclick=()=>location.reload();
+initCloud();ensureAdmin();renderAll();$('loginUser').focus();
+
+</script></body></html>

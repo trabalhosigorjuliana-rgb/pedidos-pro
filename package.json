@@ -1,0 +1,48 @@
+{
+  "name": "pedidos-pro-distribuidora",
+  "version": "1.0.0",
+  "description": "Sistema de Pedidos para distribuidora de móveis e eletrodomésticos",
+  "main": "main.js",
+  "author": "Pedidos Pro",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^38.2.0",
+    "electron-builder": "^26.0.12",
+    "better-sqlite3": "^12.2.0"
+  },
+  "build": {
+    "appId": "br.com.pedidospro.distribuidora",
+    "productName": "Pedidos Pro",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Pedidos-Pro-Instalador-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
