@@ -28,25 +28,42 @@ function createWindow() {
   });
   win.loadFile(path.join(__dirname, 'index.html'));
 }
-ipcMain.on('db:get', (event, key) => {
-  try { event.returnValue = db.prepare('SELECT value FROM app_storage WHERE key = ?').get(String(key))?.value ?? null; }
-  catch (e) { event.returnValue = null; }
+ipcMain.handle('db:get', (_event, key) => {
+  try {
+    return db.prepare('SELECT value FROM app_storage WHERE key = ?').get(String(key))?.value ?? null;
+  } catch (e) {
+    console.error('[Pedidos Pro] Falha ao ler banco:', e);
+    throw e;
+  }
 });
-ipcMain.on('db:set', (event, key, value) => {
+ipcMain.handle('db:set', (_event, key, value) => {
   try {
     db.prepare(`INSERT INTO app_storage(key,value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP)
       ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP`)
       .run(String(key), String(value));
-    event.returnValue = true;
-  } catch (e) { event.returnValue = false; }
+    return true;
+  } catch (e) {
+    console.error('[Pedidos Pro] Falha ao gravar banco:', e);
+    throw e;
+  }
 });
-ipcMain.on('db:remove', (event, key) => {
-  try { db.prepare('DELETE FROM app_storage WHERE key = ?').run(String(key)); event.returnValue = true; }
-  catch (e) { event.returnValue = false; }
+ipcMain.handle('db:remove', (_event, key) => {
+  try {
+    db.prepare('DELETE FROM app_storage WHERE key = ?').run(String(key));
+    return true;
+  } catch (e) {
+    console.error('[Pedidos Pro] Falha ao remover dados:', e);
+    throw e;
+  }
 });
-ipcMain.on('db:clear', (event) => {
-  try { db.prepare('DELETE FROM app_storage').run(); event.returnValue = true; }
-  catch (e) { event.returnValue = false; }
+ipcMain.handle('db:clear', () => {
+  try {
+    db.prepare('DELETE FROM app_storage').run();
+    return true;
+  } catch (e) {
+    console.error('[Pedidos Pro] Falha ao limpar banco:', e);
+    throw e;
+  }
 });
 ipcMain.handle('backup:show-location', async () => {
   const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'], title: 'Escolha a pasta para salvar uma cópia do banco de dados' });

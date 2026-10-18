@@ -1,6 +1,6 @@
 {
   "name": "pedidos-pro-distribuidora",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Sistema de Pedidos para distribuidora de móveis e eletrodomésticos",
   "main": "main.js",
   "author": "Pedidos Pro",
@@ -9,7 +9,6 @@
     "start": "electron .",
     "dist": "electron-builder --win nsis"
   },
-  
   "dependencies": {
     "better-sqlite3": "^12.2.0"
   },
@@ -17,7 +16,6 @@
     "electron": "^38.2.0",
     "electron-builder": "^26.0.12"
   },
-
   "build": {
     "appId": "br.com.pedidospro.distribuidora",
     "productName": "Pedidos Pro",

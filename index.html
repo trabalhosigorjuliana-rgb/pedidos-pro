@@ -150,17 +150,7 @@ h2{margin:0 0 16px;font-size:21px}.grid{display:grid;grid-template-columns:repea
 <div class="actions"><button type="submit">Salvar usuário</button><button type="button" class="secondary" id="cancelUser">Limpar formulário</button></div>
 </form></div><div class="panel"><h2>Usuários cadastrados</h2><div class="tablewrap"><table><thead><tr><th>Nome</th><th>Login</th><th>Contato</th><th>Permissão</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersTable"></tbody></table></div></div>
 <div class="panel"><p class="small muted">O administrador pode criar, editar, ativar/desativar e excluir contas. Não é permitido excluir ou desativar o próprio administrador conectado.</p></div></section>
-<section id="usersTab" class="tab hidden"><div class="panel"><h2>Cadastro de Usuários</h2><p class="muted">Cadastre acessos, defina permissões e desative contas quando necessário.</p>
-<form id="userForm"><input id="userId" type="hidden"><div class="grid">
-<div><label>Nome completo *</label><input id="uFullName" required maxlength="100"></div>
-<div><label>Nome de usuário (login) *</label><input id="uUsername" required maxlength="40" autocomplete="off"></div>
-<div><label>Senha <span id="passwordHint">(obrigatória para novo usuário)</span></label><input id="uPassword" type="password" minlength="3" autocomplete="new-password" placeholder="Defina uma senha"></div>
-<div><label>E-mail</label><input id="uEmail" type="email" maxlength="120"></div><div><label>Telefone</label><input id="uPhone" type="tel" maxlength="30"></div>
-<div><label>Tipo de acesso *</label><select id="uRole" required><option value="user">Usuário normal</option><option value="admin">Administrador</option></select></div>
-<div><label>Status da conta *</label><select id="uActive" required><option value="true">Ativo</option><option value="false">Inativo</option></select></div></div>
-<div class="actions"><button type="submit">Salvar usuário</button><button type="button" class="secondary" id="cancelUser">Limpar formulário</button></div></form></div>
-<div class="panel"><h2>Usuários cadastrados</h2><div class="tablewrap"><table><thead><tr><th>Nome</th><th>Login</th><th>Contato</th><th>Permissão</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersTable"></tbody></table></div></div>
-<div class="panel"><p class="small muted">O administrador pode criar, editar, ativar/desativar e excluir contas. Não é permitido excluir ou desativar a conta principal Walter.</p></div></section>
+
 <section id="dados" class="tab hidden"><div class="panel"><h2>Backup e ajuda</h2><p>O sistema salva automaticamente cadastros e pedidos no banco de dados local deste computador. Para ter um arquivo de backup em Downloads, toque em Exportar backup. Não limpe os dados do Chrome sem antes exportar uma cópia.</p><div class="toolbar"><button id="exportData">Exportar backup (.json)</button><label class="btn secondary" for="importFile">Importar backup (.json)</label><input id="importFile" type="file" accept=".json,application/json" class="hidden"><button class="secondary" onclick="window.print()">Imprimir página</button><button class="secondary" id="reloadBtn" type="button">Recarregar sistema</button></div><p style="color:#a83232"><b>Atenção:</b> esta versão não usa Supabase. Clientes, produtos e pedidos ficam armazenados localmente no computador; não há sincronização entre aparelhos. Exporte backups regularmente. Como não há login, qualquer pessoa que abrir o arquivo neste aparelho poderá acessar os dados.</p><h3>Como usar</h3><ol><li>Cadastre seus clientes na aba <b>Cadastro de Clientes</b>.</li><li>Cadastre os itens e preços na aba <b>Produtos</b>.</li><li>Monte um pedido na aba <b>Solicitar Pedidos</b> e clique em Salvar pedido.</li><li>Use <b>Imprimir</b> no pedido para imprimir ou salvar como PDF.</li><li>Use Exportar backup para guardar uma cópia dos seus dados.</li></ol><p class="muted small">Esta versão é uma aplicação local simples. Ela não emite nota fiscal eletrônica, não transmite pedidos pela internet e não substitui um sistema fiscal/contábil.</p></div></section>
 
 </div></div>
@@ -171,7 +161,45 @@ const $=id=>document.getElementById(id), money=n=>(Number(n)||0).toLocaleString(
 // Versão local, sem login e sem Supabase.
 let currentUser=null, selectedFactory=null, db={companies:[],products:[],orders:[],users:[],factories:[]};
 function showApp(){ $('mainApp').classList.remove('hidden'); $('mainApp').classList.add('factory-select'); $('loginScreen').classList.add('hidden'); $('seller').readOnly=true; $('seller').value=currentUser?.name||''; $('usersNav').classList.toggle('hidden',currentUser?.role!=='admin'); $('factoryHome').classList.remove('hidden'); $('appContent').classList.add('hidden'); $('factoryCnpjSearch').value=''; renderFactoryCards(); }
-function save(){renderAll();try{const snapshot=JSON.stringify(db);const previous=desktopStorage.getItem('distPedidosDB');if(previous){try{const parsed=JSON.parse(previous);if(parsed&&Array.isArray(parsed.companies)&&Array.isArray(parsed.products)&&Array.isArray(parsed.orders))desktopStorage.setItem('distPedidosDB_previous',previous);}catch(e){}}desktopStorage.setItem('distPedidosDB',snapshot);desktopStorage.setItem('distPedidosBackupAt',new Date().toISOString());desktopStorage.setItem('distPedidosSaveStatus','ok');}catch(e){try{desktopStorage.setItem('distPedidosSaveStatus','error');}catch(ignore){}alert('Não foi possível salvar no armazenamento deste navegador. Exporte um backup para Downloads e confira se há espaço disponível.');}}
+let saveQueue = Promise.resolve();
+function save(){
+  let snapshot;
+  try {
+    renderAll();
+    snapshot = JSON.stringify(db);
+  } catch (error) {
+    console.error('[Pedidos Pro] Erro ao preparar os dados para salvar:', error);
+    alert('Ocorreu um erro ao atualizar a tela. Os dados continuam na sessão atual. Exporte um backup antes de fechar o programa.');
+    return Promise.resolve(false);
+  }
+  // Mantém a ordem dos salvamentos para que uma operação rápida não sobrescreva outra mais recente.
+  saveQueue = saveQueue.catch(() => false).then(async () => {
+    try {
+      const previous = await desktopStorage.getItem('distPedidosDB');
+      if (previous) {
+        try {
+          const parsed = JSON.parse(previous);
+          if (parsed && Array.isArray(parsed.companies) && Array.isArray(parsed.products) && Array.isArray(parsed.orders)) {
+            await desktopStorage.setItem('distPedidosDB_previous', previous);
+          }
+        } catch (backupError) {
+          console.warn('[Pedidos Pro] A cópia anterior não pôde ser atualizada:', backupError);
+        }
+      }
+      const result = await desktopStorage.setItem('distPedidosDB', snapshot);
+      if (result !== true) throw new Error('O banco de dados não confirmou a gravação.');
+      await desktopStorage.setItem('distPedidosBackupAt', new Date().toISOString());
+      await desktopStorage.setItem('distPedidosSaveStatus', 'ok');
+      return true;
+    } catch (error) {
+      console.error('[Pedidos Pro] Erro ao salvar:', error);
+      try { await desktopStorage.setItem('distPedidosSaveStatus', 'error'); } catch (_) {}
+      alert('Não foi possível confirmar a gravação no banco local. Os dados continuam na tela nesta sessão. Use “Exportar backup” antes de fechar o programa e verifique se há espaço no disco.');
+      return false;
+    }
+  });
+  return saveQueue;
+}
 function seedDemoFactories(){
  const demos=[
   {id:'demo-factory-01',factoryName:'FÁBRICA TESTE 01 (FICTÍCIA)',factoryCnpj:'00.000.000/0001-01',factoryContact:'Contato fictício 01',factoryPhone:'(00) 00000-0001',factoryEmail:'fabrica01@example.test',factoryNotes:'Cadastro fictício para testes — não representa empresa real.'},
@@ -203,7 +231,50 @@ function seedDemoProducts(){
  });
  return changed;
 }
-function initCloud(){let saved=null;try{saved=JSON.parse(desktopStorage.getItem('distPedidosDB')||'null');if(!(saved&&Array.isArray(saved.companies)&&Array.isArray(saved.products)&&Array.isArray(saved.orders)))saved=null;}catch(e){saved=null;}if(!saved){try{const previous=JSON.parse(desktopStorage.getItem('distPedidosDB_previous')||'null');if(previous&&Array.isArray(previous.companies)&&Array.isArray(previous.products)&&Array.isArray(previous.orders)){saved=previous;console.warn('Dados recuperados da cópia local anterior.');}}catch(e){}}if(saved)db=Object.assign(db,saved);if(!Array.isArray(db.users))db.users=[];if(!Array.isArray(db.factories))db.factories=[];const factoriesAdded=seedDemoFactories();const productsAdded=seedDemoProducts();renderAll();resetOrder();if(factoriesAdded||productsAdded||!saved)save()}
+async function initCloud(){
+  let saved = null;
+  let primaryRaw = null;
+  try {
+    primaryRaw = await desktopStorage.getItem('distPedidosDB');
+  } catch (error) {
+    console.error('[Pedidos Pro] Não foi possível acessar o banco principal:', error);
+    throw new Error('O banco de dados não pôde ser lido. Para evitar perda de dados, o sistema não será reinicializado automaticamente.');
+  }
+  try {
+    saved = JSON.parse(primaryRaw || 'null');
+    if (!(saved && Array.isArray(saved.companies) && Array.isArray(saved.products) && Array.isArray(saved.orders))) saved = null;
+  } catch (error) {
+    saved = null;
+  }
+  if (!saved) {
+    let previousRaw = null;
+    try {
+      previousRaw = await desktopStorage.getItem('distPedidosDB_previous');
+    } catch (error) {
+      console.error('[Pedidos Pro] Não foi possível acessar a cópia anterior:', error);
+      throw new Error('O banco e a cópia de segurança não puderam ser lidos. O programa não gravará dados vazios por cima dos existentes.');
+    }
+    try {
+      const previous = JSON.parse(previousRaw || 'null');
+      if (previous && Array.isArray(previous.companies) && Array.isArray(previous.products) && Array.isArray(previous.orders)) {
+        saved = previous;
+        console.warn('[Pedidos Pro] Dados recuperados da cópia local anterior.');
+      }
+    } catch (error) {
+      console.warn('[Pedidos Pro] A cópia anterior não contém JSON válido:', error);
+    }
+  }
+  if (saved) db = Object.assign(db, saved);
+  if (!Array.isArray(db.companies)) db.companies = [];
+  if (!Array.isArray(db.products)) db.products = [];
+  if (!Array.isArray(db.orders)) db.orders = [];
+  if (!Array.isArray(db.users)) db.users = [];
+  if (!Array.isArray(db.factories)) db.factories = [];
+  seedDemoFactories();
+  seedDemoProducts();
+  renderAll();
+  resetOrder();
+}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function tab(name){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));$('mainApp').classList.remove('factory-select');$('factoryHome').classList.add('hidden');$('appContent').classList.remove('hidden')}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
@@ -270,16 +341,16 @@ $('factorySearchButton').addEventListener('click',()=>{
 function chooseFactory(id){selectedFactory=db.factories.find(f=>f.id===id)||null;if(!selectedFactory)return;tab('pedidos');resetOrder();renderAll();}
 const openFactoriesButton=$('openFactories'); if(openFactoriesButton) openFactoriesButton.onclick=()=>tab('fabricas');
 $('backToFactoryHome').onclick=()=>{ $('mainApp').classList.add('factory-select');$('appContent').classList.add('hidden');$('factoryHome').classList.remove('hidden');$('factoryCnpjSearch').value='';document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));renderFactoryCards()};
-$('factoryForm').onsubmit=e=>{e.preventDefault();const id=$('factoryId').value||crypto.randomUUID();const obj={id};factoryFields.forEach(f=>obj[f]=$(f).value.trim());const i=db.factories.findIndex(x=>x.id===id);if(i>=0)db.factories[i]=obj;else db.factories.push(obj);clearForm(factoryFields,'factoryId');save();renderFactoryCards();alert('Fábrica salva com sucesso.')};
+$('factoryForm').onsubmit=async e=>{e.preventDefault();const id=$('factoryId').value||crypto.randomUUID();const obj={id};factoryFields.forEach(f=>obj[f]=$(f).value.trim());const i=db.factories.findIndex(x=>x.id===id);if(i>=0)db.factories[i]=obj;else db.factories.push(obj);if(await save()){clearForm(factoryFields,'factoryId');renderFactoryCards();alert('Fábrica salva com sucesso.')}};
 $('cancelFactory').onclick=()=>clearForm(factoryFields,'factoryId');
 function editFactory(id){const f=db.factories.find(x=>x.id===id);if(!f)return;$('factoryId').value=f.id;factoryFields.forEach(k=>$(k).value=f[k]||'');tab('fabricas')}
 function deleteFactory(id){if(db.orders.some(o=>o.factoryId===id))return alert('Esta fábrica possui pedidos vinculados e não pode ser excluída.');if(!confirm('Excluir esta fábrica?'))return;db.factories=db.factories.filter(f=>f.id!==id);save();renderFactoryCards()}
 const companyFields=['coName','coFantasy','coDoc','coIE','coPhone','coEmail','coContact','coCep','coCity','coState','coDistrict','coAddress','coNumber'];
 const productFields=['prCode','prName','prCategory','prBrand','prUnit','prPrice','prStock','prNotes'];
 function clearForm(fields,id){fields.forEach(f=>$(f).value='');$(id).value=''}
-$('companyForm').onsubmit=e=>{e.preventDefault();let obj={id:$('companyId').value||crypto.randomUUID()};companyFields.forEach((f,i)=>obj[f]=$(f).value.trim());let idx=db.companies.findIndex(x=>x.id===obj.id);if(idx>=0)db.companies[idx]=obj;else db.companies.push(obj);clearForm(companyFields,'companyId');save()};
+$('companyForm').onsubmit=async e=>{e.preventDefault();let obj={id:$('companyId').value||crypto.randomUUID()};companyFields.forEach(f=>obj[f]=$(f).value.trim());let idx=db.companies.findIndex(x=>x.id===obj.id);if(idx>=0)db.companies[idx]=obj;else db.companies.push(obj);if(await save())clearForm(companyFields,'companyId')};
 $('cancelCompany').onclick=()=>clearForm(companyFields,'companyId');
-$('productForm').onsubmit=e=>{e.preventDefault();if(!selectedFactory)return alert('Selecione uma fábrica antes de cadastrar produtos.');let id=$('productId').value;let existing=db.products.find(x=>x.id===id);if(existing&&existing.factoryId!==selectedFactory.id)return alert('Este produto pertence a outra fábrica.');let obj={id:id||crypto.randomUUID(),factoryId:existing?.factoryId||selectedFactory.id};productFields.forEach(f=>obj[f]=$(f).value.trim());obj.prPrice=Number(obj.prPrice)||0;let idx=db.products.findIndex(x=>x.id===obj.id);if(idx>=0)db.products[idx]=obj;else db.products.push(obj);clearForm(productFields,'productId');save()};
+$('productForm').onsubmit=async e=>{e.preventDefault();if(!selectedFactory)return alert('Selecione uma fábrica antes de cadastrar produtos.');let id=$('productId').value;let existing=db.products.find(x=>x.id===id);if(existing&&existing.factoryId!==selectedFactory.id)return alert('Este produto pertence a outra fábrica.');let obj={id:id||crypto.randomUUID(),factoryId:existing?.factoryId||selectedFactory.id};productFields.forEach(f=>obj[f]=$(f).value.trim());obj.prPrice=Number(obj.prPrice)||0;let idx=db.products.findIndex(x=>x.id===obj.id);if(idx>=0)db.products[idx]=obj;else db.products.push(obj);if(await save())clearForm(productFields,'productId')};
 $('cancelProduct').onclick=()=>clearForm(productFields,'productId');
 function editCompany(id){let x=db.companies.find(x=>x.id===id);if(!x)return;$('companyId').value=x.id;companyFields.forEach(f=>$(f).value=x[f]||'');tab('empresas');window.scrollTo(0,0)}
 function editProduct(id){let x=db.products.find(x=>x.id===id);if(!x)return;if(!selectedFactory||x.factoryId!==selectedFactory.id)return alert('Este produto não pertence à fábrica selecionada.');$('productId').value=x.id;productFields.forEach(f=>$(f).value=x[f]??'');tab('produtos');window.scrollTo(0,0)}
@@ -330,7 +401,7 @@ cnpjInput.addEventListener('focus',()=>{if(cnpjInput.value.trim())showCnpjSugges
 cnpjInput.addEventListener('keydown',e=>{if(e.key==='Escape')hideCnpjSuggestions();if(e.key==='Enter'&&!cnpjSuggestions.classList.contains('hidden')){const first=cnpjSuggestions.querySelector('button');if(first){e.preventDefault();first.click()}}});
 document.addEventListener('click',e=>{if(!e.target.closest('.cnpj-field'))hideCnpjSuggestions()});
 
-$('orderForm').onsubmit=e=>{e.preventDefault();let lines=getLines();if(!lines.length)return alert('Adicione ao menos um produto ao pedido.');let typedDoc=$('ordCompany').value.trim();let typedDigits=digits(typedDoc);let co=db.companies.find(x=>{let doc=String(x.coDoc||'').trim();let docDigits=digits(doc);return doc.toLocaleLowerCase('pt-BR')===typedDoc.toLocaleLowerCase('pt-BR')||(docDigits===typedDigits&&typedDigits.length>0)});if(!co)return alert('CNPJ/CPF não encontrado no Cadastro de Clientes. Confira o cadastro ou selecione um cliente da lista.');if(!selectedFactory)return alert('Selecione uma fábrica antes de emitir um pedido.');let o={id:crypto.randomUUID(),factoryId:selectedFactory.id,factoryName:selectedFactory.factoryName,num:$('ordNum').value,date:$('ordDate').value,companyId:co.id,company:co.coName,doc:co.coDoc,address:[co.coAddress,co.coNumber,co.coDistrict,co.coCity,co.coState,co.coCep].filter(Boolean).join(', '),phone:co.coPhone,contact:co.coContact,seller:$('seller').value,payment:$('payment').value,notes:$('notes').value,lines,total:lines.reduce((s,x)=>s+x.qty*x.price,0)};db.orders.unshift(o);save();alert('Pedido salvo com sucesso.');resetOrder()};
+$('orderForm').onsubmit=async e=>{e.preventDefault();let lines=getLines();if(!lines.length)return alert('Adicione ao menos um produto ao pedido.');let typedDoc=$('ordCompany').value.trim();let typedDigits=digits(typedDoc);let co=db.companies.find(x=>{let doc=String(x.coDoc||'').trim();let docDigits=digits(doc);return doc.toLocaleLowerCase('pt-BR')===typedDoc.toLocaleLowerCase('pt-BR')||(docDigits===typedDigits&&typedDigits.length>0)});if(!co)return alert('CNPJ/CPF não encontrado no Cadastro de Clientes. Confira o cadastro ou selecione um cliente da lista.');if(!selectedFactory)return alert('Selecione uma fábrica antes de emitir um pedido.');let o={id:crypto.randomUUID(),factoryId:selectedFactory.id,factoryName:selectedFactory.factoryName,num:$('ordNum').value,date:$('ordDate').value,companyId:co.id,company:co.coName,doc:co.coDoc,address:[co.coAddress,co.coNumber,co.coDistrict,co.coCity,co.coState,co.coCep].filter(Boolean).join(', '),phone:co.coPhone,contact:co.coContact,seller:$('seller').value,payment:$('payment').value,notes:$('notes').value,lines,total:lines.reduce((s,x)=>s+x.qty*x.price,0)};db.orders.unshift(o);if(await save()){alert('Pedido salvo com sucesso.');resetOrder()}};
 function printOrder(id){
  let o=db.orders.find(x=>x.id===id);if(!o)return;
  // Busca os dados atuais no cadastro do cliente selecionado pelo CNPJ/CPF.
@@ -383,7 +454,7 @@ $('productsTable').innerHTML=db.products.filter(x=>selectedFactory&&x.factoryId=
 
 $('ordersTable').innerHTML=db.orders.map(o=>`<tr><td>${esc(o.num)}</td><td>${esc(o.date)}</td><td>${esc(o.factoryName||db.factories.find(f=>f.id===o.factoryId)?.factoryName||"-")}</td><td>${esc(o.company)}</td><td>${money(o.total)}</td><td><button onclick="printOrder('${o.id}')">Imprimir</button> <button class="danger" onclick="if(confirm('Excluir pedido?')){db.orders=db.orders.filter(x=>x.id!=='${o.id}');save()}">Excluir</button></td></tr>`).join('')||'<tr><td colspan="6">Nenhum pedido salvo.</td></tr>'}
 $('exportData').onclick=()=>{let a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.href=url;a.download='backup-distribuidora-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url)};
-$('importFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let incoming=JSON.parse(await f.text());if(!Array.isArray(incoming.companies)||!Array.isArray(incoming.products)||!Array.isArray(incoming.orders))throw Error();if(confirm('Importar backup e substituir os dados atuais?')){db=incoming;save();alert('Backup importado.')}}catch(err){alert('Arquivo inválido ou incompatível.')}e.target.value=''};
+$('importFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let incoming=JSON.parse(await f.text());if(!Array.isArray(incoming.companies)||!Array.isArray(incoming.products)||!Array.isArray(incoming.orders))throw Error();if(confirm('Importar backup e substituir os dados atuais?')){db=incoming;if(await save())alert('Backup importado com sucesso.')}}catch(err){console.error('[Pedidos Pro] Erro ao importar backup:',err);alert('Arquivo inválido ou incompatível.')}e.target.value=''};
 const originalRenderAll=renderAll;
 renderAll=function(){originalRenderAll();renderUsers()};
 function ensureAdmin(){
@@ -399,8 +470,8 @@ function ensureAdmin(){
   if(!db.users.some(u=>String(u.username).toLowerCase()==='walter')){
     db.users.push({id:'default-admin-walter',name:'Walter',username:'Walter',password:'123',email:'',phone:'',role:'admin',active:true,createdAt:new Date().toISOString()});
   }
-  try{desktopStorage.setItem('distPedidosDB',JSON.stringify(db))}catch(e){}
 }
+
 function renderUsers(){
   const body=$('usersTable'); if(!body)return;
   body.innerHTML=db.users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.username)}</td><td>${esc(u.email||'-')}<br>${esc(u.phone||'')}</td><td><span class="role-pill">${u.role==='admin'?'Administrador':'Usuário normal'}</span></td><td>${u.active?'Ativo':'Inativo'}</td><td><button onclick="editUser('${u.id}')">Editar</button> <button class="secondary" onclick="toggleUser('${u.id}')">${u.active?'Desativar':'Ativar'}</button> <button class="danger" onclick="deleteUser('${u.id}')">Excluir</button></td></tr>`).join('')||'<tr><td colspan="6">Nenhum usuário cadastrado.</td></tr>';
@@ -425,7 +496,7 @@ function deleteUser(id){
   if(u.id===currentUser.id||String(u.username).toLowerCase()==='walter')return alert('A conta principal ou a conta conectada não pode ser excluída.');
   if(confirm('Excluir o usuário '+u.username+'? Esta ação não pode ser desfeita.')){db.users=db.users.filter(x=>x.id!==id);save();}
 }
-$('userForm').onsubmit=e=>{
+$('userForm').onsubmit=async e=>{
   e.preventDefault();if(currentUser?.role!=='admin')return alert('Apenas administradores podem gerenciar usuários.');
   const id=$('userId').value, username=$('uUsername').value.trim();
   if(db.users.some(u=>u.username.toLowerCase()===username.toLowerCase()&&u.id!==id))return alert('Já existe um usuário com esse login.');
@@ -434,7 +505,7 @@ $('userForm').onsubmit=e=>{
   const obj={id:id||crypto.randomUUID(),name:$('uFullName').value.trim(),username,password:$('uPassword').value||old?.password||'',email:$('uEmail').value.trim(),phone:$('uPhone').value.trim(),role:$('uRole').value,active:$('uActive').value==='true',createdAt:old?.createdAt||new Date().toISOString()};
   if(String(obj.username).toLowerCase()==='walter'){obj.role='admin';obj.active=true;}
   if(old)db.users=db.users.map(u=>u.id===id?obj:u);else db.users.push(obj);
-  save();clearUserForm();alert('Usuário salvo com sucesso.');
+  if(await save()){clearUserForm();alert('Usuário salvo com sucesso.');}
 };
 $('cancelUser').onclick=clearUserForm;
 $('loginForm').onsubmit=e=>{
@@ -445,6 +516,26 @@ $('loginForm').onsubmit=e=>{
 };
 $('logoutBtn').onclick=()=>{currentUser=null;selectedFactory=null;$('mainApp').classList.add('hidden');$('loginScreen').classList.remove('hidden');$('loginUser').value='';$('loginPass').value='';$('loginUser').focus();};
 $('reloadBtn').onclick=()=>location.reload();
-initCloud();ensureAdmin();renderAll();$('loginUser').focus();
+let databaseReady = false;
+$('loginForm').onsubmit = (function(originalHandler){
+  return function(e){
+    if(!databaseReady){e.preventDefault();$('loginError').textContent='Carregando os dados do sistema. Tente entrar novamente em instantes.';return;}
+    return originalHandler.call(this,e);
+  };
+})($('loginForm').onsubmit);
+(async function bootPedidosPro(){
+  try {
+    await initCloud();
+    ensureAdmin();
+    renderAll();
+    const ok = await save();
+    databaseReady = true;
+    if (!ok) console.warn('[Pedidos Pro] O sistema iniciou, mas a última gravação precisa ser conferida.');
+    $('loginUser').focus();
+  } catch (error) {
+    console.error('[Pedidos Pro] Falha ao iniciar o sistema:', error);
+    $('loginError').textContent='Não foi possível carregar o banco de dados. Feche e abra o programa; se o erro continuar, preserve o backup e entre em contato com o suporte.';
+  }
+})();
 
 </script></body></html>
